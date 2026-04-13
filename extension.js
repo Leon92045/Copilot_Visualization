@@ -1,132 +1,118 @@
-import * as vscode from 'vscode';
-
-let panel: vscode.WebviewView | undefined;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.activate = activate;
+exports.deactivate = deactivate;
+const vscode = require("vscode");
+let panel;
 let stats = { total: 0, accepted: 0, rejected: 0, xp: 0, level: 1, score: 0 };
-
 // Track typing bursts to detect when Copilot is likely working
-let typingTimer: NodeJS.Timeout | undefined;
+let typingTimer;
 let lastLineCount = 0;
 let suggestionPending = false;
-
-export function activate(context: vscode.ExtensionContext) {
-
-  // Register the sidebar webview
-  const provider = new CopilotPxViewProvider(context.extensionUri);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('copilotPx.panel', provider)
-  );
-
-  // ── Text change listener ─────────────────────────────────────────────────
-  // We watch for typing pauses — when the user stops typing for ~400ms
-  // Copilot typically fires. We use this to trigger the "thinking" animation.
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeTextDocument((e) => {
-      if (!panel) return;
-      if (e.document.uri.scheme !== 'file') return;
-
-      const newLineCount = e.document.lineCount;
-      const delta = e.contentChanges;
-      if (delta.length === 0) return;
-
-      // Detect if a full line was inserted (likely an accepted suggestion)
-      const bigInsert = delta.some(c => c.text.includes('\n') || c.text.length > 8);
-
-      if (bigInsert && suggestionPending) {
-        // Looks like Tab was pressed — suggestion accepted
-        suggestionPending = false;
-        stats.accepted++;
-        stats.xp += 10;
-        stats.score += 100;
-        checkLevelUp();
-        post({ type: 'accepted', stats });
-      } else {
-        // Regular typing — debounce to detect pause → trigger "thinking"
-        clearTimeout(typingTimer);
-        post({ type: 'typing' });
-        typingTimer = setTimeout(() => {
-          if (!suggestionPending) {
-            suggestionPending = true;
-            stats.total++;
-            post({ type: 'thinking', stats });
-            // After ~600ms simulate suggestion arriving
-            setTimeout(() => post({ type: 'suggestion' }), 500 + Math.random() * 600);
-          }
-        }, 400);
-      }
-
-      lastLineCount = newLineCount;
-    })
-  );
-
-  // ── Escape key → rejected ────────────────────────────────────────────────
-  context.subscriptions.push(
-    vscode.commands.registerCommand('type', (args) => {
-      if (args.text === '\x1b' && suggestionPending) {
-        suggestionPending = false;
-        stats.rejected++;
-        stats.xp += 2;
-        checkLevelUp();
-        post({ type: 'rejected', stats });
-      }
-      return vscode.commands.executeCommand('default:type', args);
-    })
-  );
-
-  // ── Active editor change ─────────────────────────────────────────────────
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor) post({ type: 'fileChange', filename: editor.document.fileName.split('/').pop() });
-    })
-  );
+function activate(context) {
+    // Register the sidebar webview
+    const provider = new CopilotPxViewProvider(context.extensionUri);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider('copilotPx.panel', provider));
+    // ── Text change listener ─────────────────────────────────────────────────
+    // We watch for typing pauses — when the user stops typing for ~400ms
+    // Copilot typically fires. We use this to trigger the "thinking" animation.
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument((e) => {
+        if (!panel)
+            return;
+        if (e.document.uri.scheme !== 'file')
+            return;
+        const newLineCount = e.document.lineCount;
+        const delta = e.contentChanges;
+        if (delta.length === 0)
+            return;
+        // Detect if a full line was inserted (likely an accepted suggestion)
+        const bigInsert = delta.some(c => c.text.includes('\n') || c.text.length > 8);
+        if (bigInsert && suggestionPending) {
+            // Looks like Tab was pressed — suggestion accepted
+            suggestionPending = false;
+            stats.accepted++;
+            stats.xp += 10;
+            stats.score += 100;
+            checkLevelUp();
+            post({ type: 'accepted', stats });
+        }
+        else {
+            // Regular typing — debounce to detect pause → trigger "thinking"
+            clearTimeout(typingTimer);
+            post({ type: 'typing' });
+            typingTimer = setTimeout(() => {
+                if (!suggestionPending) {
+                    suggestionPending = true;
+                    stats.total++;
+                    post({ type: 'thinking', stats });
+                    // After ~600ms simulate suggestion arriving
+                    setTimeout(() => post({ type: 'suggestion' }), 500 + Math.random() * 600);
+                }
+            }, 400);
+        }
+        lastLineCount = newLineCount;
+    }));
+    // ── Escape key → rejected ────────────────────────────────────────────────
+    context.subscriptions.push(vscode.commands.registerCommand('type', (args) => {
+        if (args.text === '\x1b' && suggestionPending) {
+            suggestionPending = false;
+            stats.rejected++;
+            stats.xp += 2;
+            checkLevelUp();
+            post({ type: 'rejected', stats });
+        }
+        return vscode.commands.executeCommand('default:type', args);
+    }));
+    // ── Active editor change ─────────────────────────────────────────────────
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor)
+            post({ type: 'fileChange', filename: editor.document.fileName.split('/').pop() });
+    }));
 }
-
-function post(msg: object) {
-  panel?.webview.postMessage(msg);
+function post(msg) {
+    panel?.webview.postMessage(msg);
 }
-
 function checkLevelUp() {
-  const needed = stats.level * 100;
-  if (stats.xp >= needed) {
-    stats.xp -= needed;
-    stats.level++;
-    post({ type: 'levelup', level: stats.level });
-  }
+    const needed = stats.level * 100;
+    if (stats.xp >= needed) {
+        stats.xp -= needed;
+        stats.level++;
+        post({ type: 'levelup', level: stats.level });
+    }
 }
-
-class CopilotPxViewProvider implements vscode.WebviewViewProvider {
-  constructor(private readonly extensionUri: vscode.Uri) {}
-
-  resolveWebviewView(webviewView: vscode.WebviewView) {
-    panel = webviewView;
-    webviewView.webview.options = { enableScripts: true };
-    webviewView.webview.html = getWebviewContent();
-
-    // Messages from webview back to extension
-    webviewView.webview.onDidReceiveMessage((msg) => {
-      if (msg.type === 'manualAccept') {
-        stats.accepted++;
-        stats.xp += 10;
-        stats.score += 100;
-        checkLevelUp();
-        post({ type: 'accepted', stats });
-      }
-      if (msg.type === 'manualReject') {
-        stats.rejected++;
-        stats.xp += 2;
-        checkLevelUp();
-        post({ type: 'rejected', stats });
-      }
-      if (msg.type === 'manualTrigger') {
-        stats.total++;
-        post({ type: 'thinking', stats });
-        setTimeout(() => post({ type: 'suggestion' }), 500 + Math.random() * 700);
-      }
-    });
-  }
+class CopilotPxViewProvider {
+    constructor(extensionUri) {
+        this.extensionUri = extensionUri;
+    }
+    resolveWebviewView(webviewView) {
+        panel = webviewView;
+        webviewView.webview.options = { enableScripts: true };
+        webviewView.webview.html = getWebviewContent();
+        // Messages from webview back to extension
+        webviewView.webview.onDidReceiveMessage((msg) => {
+            if (msg.type === 'manualAccept') {
+                stats.accepted++;
+                stats.xp += 10;
+                stats.score += 100;
+                checkLevelUp();
+                post({ type: 'accepted', stats });
+            }
+            if (msg.type === 'manualReject') {
+                stats.rejected++;
+                stats.xp += 2;
+                checkLevelUp();
+                post({ type: 'rejected', stats });
+            }
+            if (msg.type === 'manualTrigger') {
+                stats.total++;
+                post({ type: 'thinking', stats });
+                setTimeout(() => post({ type: 'suggestion' }), 500 + Math.random() * 700);
+            }
+        });
+    }
 }
-
-function getWebviewContent(): string {
-  return `<!DOCTYPE html>
+function getWebviewContent() {
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -448,5 +434,5 @@ updateUI(null);
 </body>
 </html>`;
 }
-
-export function deactivate() {}
+function deactivate() { }
+//# sourceMappingURL=extension.js.map
