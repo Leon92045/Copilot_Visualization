@@ -19,8 +19,8 @@
       "activitybar": [
         {
           "id": "copilot-px",
-          "title": "Copilot PX",
-          "icon": "media/icon.svg"
+          "title": "Code Quest",
+          "icon": "icon128.png"
         }
       ]
     },
@@ -29,14 +29,14 @@
         {
           "type": "webview",
           "id": "copilotPx.panel",
-          "name": "Pixel Viz"
+          "name": " "
         }
       ]
     },
     "commands": [
       {
         "command": "copilotPx.open",
-        "title": "Copilot PX: Open Panel"
+        "title": "Code Quest: Open Panel"
       }
     ]
   },
@@ -51,7 +51,7 @@
     "typescript": "^5.3.0",
     "@vscode/vsce": "^2.22.0"
   },
-  "icon": "media/icon128.png",
+  "icon": "icon128.png",
   "keywords": [
     "game",
     "pixel",
