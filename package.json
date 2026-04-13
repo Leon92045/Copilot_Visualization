@@ -1,6 +1,6 @@
 {
-  "name": "copilot-px",
-  "displayName": "Copilot PX",
+  "name": "code-quest",
+  "displayName": "Code Quest",
   "description": "Playful pixel-art visualizer for GitHub Copilot activity",
   "version": "0.1.0",
   "publisher": "your-name",
@@ -12,20 +12,20 @@
     "viewsContainers": {
       "activitybar": [{
         "id": "copilot-px",
-        "title": "Copilot PX",
-        "icon": "media/icon.svg"
+        "title": "Code Quest",
+        "icon": "icon.svg"
       }]
     },
     "views": {
       "copilot-px": [{
         "type": "webview",
         "id": "copilotPx.panel",
-        "name": "Pixel Viz"
+        "name": "Code Quest"
       }]
     },
     "commands": [{
       "command": "copilotPx.open",
-      "title": "Copilot PX: Open Panel"
+      "title": "Code Quest: Open Panel"
     }]
   },
   "scripts": {
