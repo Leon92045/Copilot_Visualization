@@ -1,0 +1,42 @@
+{
+  "name": "copilot-px",
+  "displayName": "Copilot PX",
+  "description": "Playful pixel-art visualizer for GitHub Copilot activity",
+  "version": "0.1.0",
+  "publisher": "your-name",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{
+        "id": "copilot-px",
+        "title": "Copilot PX",
+        "icon": "media/icon.svg"
+      }]
+    },
+    "views": {
+      "copilot-px": [{
+        "type": "webview",
+        "id": "copilotPx.panel",
+        "name": "Pixel Viz"
+      }]
+    },
+    "commands": [{
+      "command": "copilotPx.open",
+      "title": "Copilot PX: Open Panel"
+    }]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
